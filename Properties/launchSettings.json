@@ -34,6 +34,17 @@
       },
       "publishAllPorts": true,
       "useSSL": true
+    },
+    "kevinHttps": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_URLS": "https://+:443;http://+:80",
+        "ASPNETCORE_Kestrel__Certificates__Default__Path": "/etc/letsencrypt/live/portal.aumeril.com-0002/Cert.pem",
+        "ASPNETCORE_Kestrel__Certificates__Default__KeyPath": "/etc/letsencrypt/live/portal.aumeril.com-0002/Cert.pem"
+      },
+      "dotnetRunMessages": true,
+      
     }
   },
   "$schema": "http://json.schemastore.org/launchsettings.json",
