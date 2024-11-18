@@ -1,0 +1,46 @@
+﻿@page "/"
+@using Microsoft.EntityFrameworkCore
+@using Concert400.Data
+@using MudBlazor
+@implements IAsyncDisposable
+@inject IDbContextFactory<Concert400.Data.ApplicationDbContext> DbFactory
+
+<PageTitle>Index</PageTitle>
+
+<h1 class="title">Bienvenue sur Concert400</h1>
+<h2 class="sub1">Retrouvez tous les concerts et spectacles à venir</h2>
+
+<MudGrid Class="my-5">
+    @foreach (Concert concert in context.Concerts.Include(x => x.Place).ToList())
+    {
+        <MudItem xs="12" md="6" lg="4">
+            <a href="@($"details?id={concert.Id}")" class="d-block">
+            <MudCard>
+                <h6 class="sub3" style="position:absolute;z-index:99" T="string" Color="Color.Info">@(((DateTime)concert.Date!).ToShortDateString())</h6>
+                @if (concert.Picture != null)
+                {
+                    <MudCardMedia Image="@($"data:image;base64,{System.Convert.ToBase64String(concert.Picture ?? new byte[0])}")" Height="270" />
+                }
+                else{
+                    <div style="height:40px;"></div>
+                }
+                <MudCardContent>
+                    <MudText Typo="Typo.body2">@concert.Place?.Name</MudText>
+                    <h4>@concert.Name</h4>
+                    <p class="multiline-ellipsis">@concert.Description</p>
+                </MudCardContent>
+            </MudCard>
+        </a>
+        </MudItem>
+    }
+</MudGrid>
+@code {
+    private ApplicationDbContext context = default!;
+
+    protected override void OnInitialized()
+    {
+        context = DbFactory.CreateDbContext();
+    }
+
+    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+}

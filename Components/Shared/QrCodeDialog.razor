@@ -1,0 +1,72 @@
+﻿@using Blazor.QRCode
+@using MudBlazor
+
+<style>
+    .ticket{
+/*         background: rgb(212,222,44);
+        background: linear-gradient(90deg, rgba(212,222,44,1) 0%, rgba(255,166,205,1) 46%, rgba(190,168,255,1) 100%); */
+        font-family:Courier New, Courier, monospace !important;
+        padding: 10px 50px;
+        border-left:solid black 20px;
+    }
+
+    .t1{
+        font-weight:800;
+        font-size:2em;
+    }
+
+    .t2 {
+        font-weight: 600;
+        font-size: 1.2em;
+    }
+    .t2r {
+        font-weight: 600;
+        font-size: 1.2em;
+        color:white;
+        background-color:black;
+    }
+</style>
+<div class="ticket">
+    <div class="d-flex align-center">
+        <div class="mx-2">
+            <div class="t1">@Ticket.Concert.Name</div>
+            <div class="t2">@Ticket.Concert.Place.Name</div>
+            <div class="t2">Ticket nominatif</div>
+            <div class="t2r">@Ticket.FirstName @Ticket.LastName</div>
+            @if (Ticket.Price == null)
+            {
+                <div class="t1">Gratuit</div>
+            }
+            else
+            {
+                <div class="t1">@String.Format("{0}€",Ticket.Price)</div>
+            }
+        </div>
+        <QrCode ElementId="id"
+                Width="200"
+                height="200"
+                Text="@($"{Ticket.Id}")">
+        </QrCode>
+    </div>
+</div>
+@code {
+
+}
+
+@code {
+    [Parameter] public Ticket Ticket { get; set; }
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    public string QRByte = "";
+
+    protected override void OnParametersSet()
+    {
+        this.MudDialog.Options.FullWidth = true;
+        this.MudDialog.Options.MaxWidth = MaxWidth.ExtraExtraLarge;
+    }
+
+    void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

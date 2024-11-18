@@ -1,0 +1,136 @@
+﻿@page "/benchmark"
+@using Aumerial.Data.Nti
+@using MudBlazor
+@using Dapper
+
+<MudPaper Class="mb-3 pa-4">
+    <h3>Benchmark</h3>
+    <div class="d-flex">
+        <div class="w-50">
+            <MudTextField Class="mb-2" InputMode="InputMode.numeric" @bind-Value="@n" Label="Nombre de lignes à insérer" />
+            <MudTextField Class="mb-2" InputMode="InputMode.numeric" @bind-Value="@chunkSize" Label="Afficher par tranches de" />
+            <MudButton Variant="@Variant.Filled" Color="@Color.Primary" OnClick="@Start">Démarrer</MudButton>
+        </div>
+        <MudPaper Class="mx-2 px-3 py-5">
+
+            <MudText>@info</MudText>
+            <MudChart ChartType="ChartType.Line" ChartSeries="@series" @bind-SelectedIndex="Index" Width="100%" Height="300px" ChartOptions="@Options" />
+        </MudPaper>
+        
+    </div>
+    <MudTable Items="@chunks" Dense="true">
+        <HeaderContent>
+            <MudTh>De...</MudTh>
+            <MudTh>...à</MudTh>
+            <MudTh>Min (ms)</MudTh>
+            <MudTh>Moy (ms)</MudTh>
+            <MudTh>Max (ms)</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.From</MudTd>
+            <MudTd>@context.To</MudTd>
+            <MudTd Style="font-family:monospace;font-weight:bold;color:green">@context.Min</MudTd>
+            <MudTd Style="font-family:monospace;font-weight:bold;color:blue">@context.Avg</MudTd>
+            <MudTd Style="font-family:monospace;font-weight:bold;color:red">@context.Max</MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudPaper>
+
+
+@code {
+
+    public class Result
+    {
+        public int From { get; set; }
+        public int To { get; set; }
+        public double Min { get; set; }
+        public double Max { get; set; }
+        public double Avg { get; set; }
+    }
+
+    private int Index = -1; //default value cannot be 0 -> first selectedindex is 0.
+    public ChartOptions Options = new ChartOptions() { YAxisTicks = 1 };
+
+    List<Result> chunks = new();
+    List<ChartSeries> series = new();
+    List<double> chunk = new();
+    string info = string.Empty;
+    int n = 10000;
+    int chunkSize = 1000;
+
+
+
+    async Task Start()
+    {
+
+        series = new List<ChartSeries>()
+        {
+            //new ChartSeries() { Name = "Minimum", Data = Enumerable.Range(0, n/chunkSize).Select(x => (double)0).ToArray() },
+            new ChartSeries() { Name = "Moyenne", Data = Enumerable.Range(0, n/chunkSize).Select(x => (double)0).ToArray() },
+            //new ChartSeries() { Name = "Maximum", IsVisible = false, Data = Enumerable.Range(0, n/chunkSize).Select(x => (double)0).ToArray() },
+        };
+        info = $"Création d'une table BENCH et insertion de {n} lignes (Requêtes INSERT INTO individuelles). Les résultats donnent les temps de réponse minimums, maximums et moyens par tranche de {chunkSize} requêtes.";
+        StateHasChanged();
+        DateTime t1, t2, ti, tf;
+        chunks = new();
+        chunk = new();
+        NTiConnection conn = new NTiConnection();
+        conn.DefaultDatabase = "CONCERTEF";
+        conn.Username = Environment.GetEnvironmentVariable("user");
+        conn.Password = Environment.GetEnvironmentVariable("password");
+        conn.Server = Environment.GetEnvironmentVariable("server");
+        //conn.IgnoreNonQueryResult = true;
+        conn.Open();
+        try
+        {
+            conn.Execute("DROP TABLE BENCH");
+        }
+        catch
+        {
+
+        }
+        await conn.ExecuteAsync("CREATE TABLE BENCH (ID BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY, FIRSTNAME VARCHAR(512), LASTNAME VARCHAR(512))");
+        var cmd = conn.CreateCommand();
+        cmd.CommandText = "INSERT INTO BENCH (FIRSTNAME, LASTNAME) VALUES (?, ?)";
+        cmd.DeriveParameters();
+        ti = DateTime.Now;
+        int k = -1;
+        foreach (int i in Enumerable.Range(1, n))
+        {
+            t1 = DateTime.Now;
+            cmd.Parameters[0].Value = $"CUSTOMER FIRST NAME NUMBER {i}";
+            cmd.Parameters[1].Value = $"CUSTOMER LAST NAME NUMBER {i}";
+            cmd.ExecuteNonQuery();
+            t2 = DateTime.Now;
+            chunk.Add((t2 - t1).TotalMilliseconds);
+            if (i % chunkSize == 0)
+            {
+                k++;
+                await Task.Run(() =>
+                {
+                    int p = k;
+                    //series[0].Data[p] = Math.Round(chunk.Min(), 3);
+                    series[0].Data[p] = Math.Round(chunk.Average(), 3);
+                    //series[2].Data[p] = Math.Round(chunk.Max(), 3);
+
+                    chunks.Add(new()
+                        {
+                            From = i - chunkSize + 1,
+                            To = i,
+                            Min = Math.Round(chunk.Min(), 3),
+                            Max = Math.Round(chunk.Max(), 3),
+                            Avg = Math.Round(chunk.Average(), 3)
+                        });
+                    chunk = new();
+                });
+                StateHasChanged();
+            }
+        }
+        tf = DateTime.Now;
+        info += "\n \n";
+        info += $"Traitement terminé, {n} lignes ont été insérées en {Math.Round((tf - ti).TotalSeconds, 3)} secondes.";
+        StateHasChanged();
+        conn.Execute("DROP TABLE BENCH");
+        conn.Close();
+    }
+}

@@ -1,0 +1,107 @@
+﻿@page "/tickets"
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+@using Concert400.Data
+@using MudBlazor
+@inject IDbContextFactory<Concert400.Data.ApplicationDbContext> DbFactory
+@inject IDialogService Dialog
+@inject NavigationManager nav
+@inject UserManager<ApplicationUser> userManager
+@inject AuthenticationStateProvider auth
+
+@attribute [Authorize]
+
+<h1 class="title">Mes Réservations</h1>
+<MudContainer MaxWidth="MaxWidth.Medium">
+
+    @if (tickets == null)
+    {
+        <div class="d-flex w-100 flex-column align-center">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+        </div>
+    }
+    else if (tickets != null && tickets.Count > 0)
+    {
+        @foreach (Concert item in tickets.Select(x => x.Concert).DistinctBy(x => x.Id))
+        {
+            <MudCard Class=" mb-2">
+                @if (item.Picture != null)
+                {
+                    <div style="position:relative" class="d-flex">
+                        <div style="position:absolute;top:0;left:0" class="sub3">@(((DateTime)item.Date!).ToShortDateString())</div>
+                        <div style="position:absolute;top:0;right:0" class="sub3">@item.Place.Name</div>
+                        <div style="position:absolute;bottom:0;left:0" class="sub1">@item.Name</div>
+                        <MudImage Style="width:100%; max-height:200px" ObjectFit="ObjectFit.Cover" Src="@($"data:image;base64,{System.Convert.ToBase64String(item.Picture ?? new byte[0])}")" />
+                    </div>
+                }
+                else
+                {
+                    <h1 class="title">@item.Name</h1>
+                }
+                <MudCardContent Class="grey lighten-3">
+                    <MudSimpleTable Style="overflow-x: auto;" Dense="true">
+                        <thead>
+                            <tr>
+                                <th width="100%">Billets réservés:</th>
+                                <th></th>
+                                <th></th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (Ticket booking in tickets.Where(x => x.Concert.Id == item.Id))
+                            {
+                                <tr>
+                                    <td>@booking.FirstName @booking.LastName</td>
+                                    <td>
+                                        @if (booking.Checked)
+                                        {
+                                            <MudChip Disabled="true" Color="Color.Success">Scanné le @(((DateTime)booking.CheckedOn!).ToShortDateString())</MudChip>
+                                        }
+                                        else
+                                        {
+                                            <MudChip Disabled="true" Color="Color.Primary">Disponible</MudChip>
+                                        }
+                                    </td>
+                                    <td><MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.QrCode" Color="Color.Dark" OnClick="@(async () => await DisplayQrCode(booking))" /></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudCardContent>
+            </MudCard>
+        }
+    }
+    else
+    {
+        <div class="d-flex w-100 flex-column align-center">
+            <MudText Typo="Typo.h6" Class="mt-3 mb-2">Aucune réservation</MudText>
+        </div>
+    }
+</MudContainer>
+
+@code {
+    List<Ticket> tickets = default!;
+    ApplicationUser user = default!;
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await auth.GetAuthenticationStateAsync();
+        if (authState.User != null && authState.User.Identity!.IsAuthenticated)
+        {
+            user = await userManager.Users.Include(x => x.Tickets).ThenInclude(x => x.Concert).ThenInclude(x => x.Place).FirstAsync(x => x.Id == userManager.GetUserId(authState.User));
+            tickets = user.Tickets.ToList();
+        }
+
+    }
+
+    async Task DisplayQrCode(Ticket booking)
+    {
+        string bookingId = $"{booking.Id}";
+        var parameters = new DialogParameters() {
+            { "Ticket", booking }
+        };
+        await Dialog.ShowAsync<QrCodeDialog>(booking.Concert.Name, parameters, new DialogOptions() { FullWidth = true, NoHeader = true });
+        StateHasChanged();
+    }
+}

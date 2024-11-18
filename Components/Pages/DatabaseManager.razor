@@ -1,0 +1,26 @@
+﻿@page "/manage"
+@using MudBlazor
+@inject IDbContextFactory<Concert400.Data.ApplicationDbContext> DbFactory
+@inject NavigationManager nav
+
+
+<h1 class="title">Gestion de la base de données</h1>
+
+<MudContainer MaxWidth="MaxWidth.Small">
+    <MudButton OnClick="ResetSchema">Régénérer le schema</MudButton>
+    <MudButton OnClick="DropSchema">Supprimer le schema</MudButton>
+</MudContainer>
+
+@code {
+    void ResetSchema()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.ResetDatabase();
+        nav.NavigateTo("/Account/Logout");
+    }
+    void DropSchema()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Database.EnsureDeleted();
+    }
+}
