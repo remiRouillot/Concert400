@@ -1,0 +1,48 @@
+﻿@using MudBlazor
+
+@if (Data != null)
+{
+    <MudButton Class="my-1" Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="DeletePicture">
+        Supprimer l'image
+    </MudButton>
+    <div class="d-flex justify-center">
+        <MudImage Src="@($"data:image;base64,{System.Convert.ToBase64String(Data)}")" Height="@PictureHeight" />
+    </div>
+}
+else
+{
+    <MudFileUpload T="IBrowserFile" Context="fileInput" FilesChanged="@(x => UploadFiles(x))">
+        <ButtonTemplate>
+            <MudButton HtmlTag="label" for="@fileInput" Class="my-1" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload" Size="Size.Small">
+                Télécharger une image
+            </MudButton>
+        </ButtonTemplate>
+    </MudFileUpload>
+}
+
+@code {
+    [Parameter]
+    public int PictureHeight { get; set; } = 200;
+
+    [Parameter]
+    public byte[]? Data { get; set; }
+
+    [Parameter]
+    public EventCallback<byte[]?> DataChanged { get; set; }
+
+    private async Task UploadFiles(IBrowserFile file)
+    {
+        using (var ms = new MemoryStream())
+        {
+            var fs = file.OpenReadStream();
+            await fs.CopyToAsync(ms);
+            Data = ms.ToArray();
+            await DataChanged.InvokeAsync(Data);
+        }
+    }
+    private async Task DeletePicture()
+    {
+        Data = null;
+        await DataChanged.InvokeAsync(Data);
+    }
+}

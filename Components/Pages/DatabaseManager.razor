@@ -1,0 +1,42 @@
+﻿@page "/manage"
+@using MudBlazor
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Authorization
+@inject IDbContextFactory<Concert400.Data.ApplicationDbContext> DbFactory
+@inject UserManager<ApplicationUser> userManager
+@inject RoleManager<IdentityRole> roleManager
+@inject NavigationManager nav
+
+
+<h1 class="title">Gestion de la base de données</h1>
+
+<MudContainer MaxWidth="MaxWidth.Small">
+    <MudButton Variant="Variant.Filled" Class="ma-1" Color="Color.Success" StartIcon="@Icons.Material.Filled.Refresh" OnClick="ResetSchema">Régénérer le schema</MudButton>
+    <MudButton Variant="Variant.Filled" Class="ma-1" Color="Color.Error" StartIcon="@Icons.Material.Filled.DeleteSweep" OnClick="DropSchema">Supprimer le schema</MudButton>
+</MudContainer>
+
+@code {
+    async Task ResetSchema()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.ResetDatabase();
+        await roleManager.CreateAsync(new IdentityRole("admin"));
+        await roleManager.CreateAsync(new IdentityRole("manager"));
+        await roleManager.CreateAsync(new IdentityRole("scanner"));
+        ApplicationUser user = new()
+            {
+                Email = "admin@admin.com",
+                UserName = "admin@admin.com"
+            };
+        var result = await userManager.CreateAsync(user, "@Dmin1234");
+        var tk = await userManager.GenerateEmailConfirmationTokenAsync(user);
+        await userManager.ConfirmEmailAsync(user, tk);
+        await userManager.AddToRoleAsync(user, "admin");
+        nav.NavigateTo("/Account/Logout");
+    }
+    void DropSchema()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Database.EnsureDeleted();
+    }
+}

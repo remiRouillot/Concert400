@@ -1,0 +1,153 @@
+﻿@page "/details"
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Authorization
+@using Concert400.Data
+@using MudBlazor
+@inject IDbContextFactory<Concert400.Data.ApplicationDbContext> DbFactory
+@inject IDialogService dialogService
+@inject ISnackbar snack
+@inject NavigationManager NavigationManager
+@inject UserManager<ApplicationUser> userManager
+@inject AuthenticationStateProvider auth
+
+<PageTitle>@concert!.Name</PageTitle>
+
+@if (concert != null)
+{
+    <MudContainer MaxWidth="MaxWidth.Medium">
+        <MudButton Variant="@Variant.Text" StartIcon="@Icons.Material.Filled.ChevronLeft" Href="/">Retour à l'accueil</MudButton>
+        @if (concert.Picture != null)
+        {
+            <div class="d-flex">
+                <div style="position:absolute;">
+                    <h1 class="title">@concert.Name</h1>
+                </div>
+                <MudImage Style="width:100%; max-height:500px" ObjectFit="ObjectFit.Cover" Src="@($"data:image;base64,{System.Convert.ToBase64String(concert.Picture ?? new byte[0])}")" />
+            </div>
+        }
+        else
+        {
+            <h1 class="title">@concert.Name</h1>
+        }
+
+        <h3 class="sub2">Présentation</h3>
+        <p>@concert.Description</p>
+
+        <h3 class="sub2">Date</h3>
+        <p>@concert.Date</p>
+
+        <h3 class="sub2">Lieu</h3>
+        <p><b>@concert.Place?.Name</b></p>
+        <p>@concert.Place?.Address1</p>
+        <p>@concert.Place?.Address2</p>
+        <p>@concert.Place?.Zip - @concert.Place?.City</p>
+        <p>@concert.Place?.PhoneNumber</p>
+
+        <h3 class="sub2">Reservation</h3>
+        <p><b>Prix</b></p>
+        @if (concert.Price != null && concert.Price > 0)
+        {
+            <p>@String.Format("{0}€", concert.Price)</p>
+        }
+        else
+        {
+            <p>Gratuit</p>
+        }
+        <AuthorizeView>
+            <Authorized>
+                <MudButton Class="mb-5" Variant="Variant.Filled" Color="Color.Dark" StartIcon="@Icons.Material.Filled.Schedule" OnClick="OpenDialog">Réserver en ligne</MudButton>
+            </Authorized>
+            <NotAuthorized>
+                <MudAlert Class="mb-2" Severity="Severity.Info">Vous devez être connecté pour réserver, cliquez sur connexion pour vous connecter ou créer un compte</MudAlert>
+                <MudButton Class="mb-5" Color="Color.Dark" Variant="Variant.Filled" Href="@($"/Account/Login?ReturnUrl={NavigationManager.Uri.Substring(NavigationManager.BaseUri.Length - 1)}")">Connexion</MudButton>
+            </NotAuthorized>
+        </AuthorizeView>
+    </MudContainer>
+
+    <MudDialog @bind-IsVisible="@showDialog">
+        <DialogContent>
+            <h6>@concert.Name</h6>
+            <MudText Typo="Typo.overline" Class="mt-2">Adresse:</MudText>
+            <p><b>@concert.Place?.Name</b></p>
+            <p>@concert.Place?.Address1</p>
+            <p>@concert.Place?.Address2</p>
+            <p>@concert.Place?.Zip - @concert.Place?.City</p>
+            <MudTable Items="@tickets" Dense="true">
+                <ToolBarContent>
+                    <MudText>Tickets</MudText>
+                    <MudSpacer />
+                    <MudButton StartIcon="@Icons.Material.Filled.AddCircle" Color="Color.Primary" OnClick="@(() => tickets!.Add(new Ticket(){Price = concert.Price, Concert = concert}))">Ajouter</MudButton>
+                </ToolBarContent>
+                <RowTemplate>
+                    <MudTd><MudTextField @bind-Value="@context.FirstName" Label="Prénom"></MudTextField></MudTd>
+                    <MudTd><MudTextField @bind-Value="@context.LastName" Label="Nom"></MudTextField></MudTd>
+                    <MudTd><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => tickets!.Remove(context))" /></MudTd>
+                </RowTemplate>
+            </MudTable>
+        </DialogContent>
+        <DialogActions>
+            <p><strong>TOTAL: @string.Format("{0}€", tickets!.Sum(x => x.Price ?? 0))</strong></p>
+            <MudButton OnClick="CloseDialog" Color="Color.Dark" Variant="Variant.Filled">Annuler</MudButton>
+            <MudButton OnClick="Book" Color="Color.Primary" StartIcon="@Icons.Material.Filled.EventAvailable" Variant="Variant.Filled">Réserver et payer</MudButton>
+        </DialogActions>
+    </MudDialog>
+}
+
+@code {
+    private Concert? concert;
+    private bool showDialog = false;
+
+    private List<Ticket>? tickets = new();
+
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        concert = await context.Concerts.Include(x => x.Place).Include(x => x.Artists).FirstOrDefaultAsync(m => m.Id == Id);
+
+        if (concert is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    private void OpenDialog()
+    {
+        showDialog = true;
+        StateHasChanged();
+    }
+
+    private void CloseDialog()
+    {
+        showDialog = false;
+        StateHasChanged();
+
+    }
+
+    private async Task Book()
+    {
+        var authState = await auth.GetAuthenticationStateAsync();
+        if (authState.User != null && authState.User.Identity!.IsAuthenticated)
+        {
+            using (var context = DbFactory.CreateDbContext())
+            {
+                var user = await context.Users.FirstAsync(x => x.Id == userManager.GetUserId(authState.User));
+
+                foreach (var t in tickets)
+                {
+                    t.User = user;
+                    context.Tickets.Attach(t);
+                    context.Entry(user).State = EntityState.Detached;
+                    context.Entry(t).State = EntityState.Added;
+                    await context.SaveChangesAsync();
+                }
+                tickets.Clear();
+            }
+            showDialog = false;
+        }
+    }
+
+}

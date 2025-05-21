@@ -1,0 +1,116 @@
+﻿@page "/Scan"
+@using MudBlazor
+@inject IJSRuntime JS
+@inject ISnackbar snack
+@using ReactorBlazorQRCodeScanner
+@using Microsoft.AspNetCore.Authorization
+@inject IDbContextFactory<Concert400.Data.ApplicationDbContext> DbFactory
+    @implements IAsyncDisposable
+@attribute [Authorize(Roles="scanner")]
+
+<style>
+    .camera-output {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-5">
+    <h1 class="title">Scan du ticket</h1>
+    <div class="camera-output">
+        <QRCodeScanner Width="80%" />
+    </div>
+</MudContainer>
+
+@code {
+
+    private QRCodeScannerJsInterop? _qrCodeScannerJsInterop;
+    private Action<string>? _onQrCodeScanAction;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        _onQrCodeScanAction = (code) => OnQrCodeScan(code);
+        _qrCodeScannerJsInterop = new QRCodeScannerJsInterop(JS);
+        await _qrCodeScannerJsInterop.Init(_onQrCodeScanAction);
+    }
+
+    private void TestQrCodeScan(bool success)
+    {
+        snack.Configuration.PositionClass = Defaults.Classes.Position.TopCenter;
+        if (success)
+        {
+            snack.Add
+        (
+    @<div>
+        <h1>Billet valide</h1>
+    </div>
+    , Severity.Success);
+        }
+        else
+        {
+            snack.Add
+    (
+    @<div>
+        <h1>Billet déja scanné</h1>
+    </div>
+    , Severity.Error);
+        }
+    }
+
+
+    private void OnQrCodeScan(string code)
+    {
+        Ticket ticket = new();
+        using var context = DbFactory.CreateDbContext();
+        if (!int.TryParse(code, out int intCode))
+        {
+            snack.Add
+        (
+    @<div>
+        <h1>QR Code non valide</h1>
+    </div>
+        , Severity.Error);
+            return;
+        }
+        try
+        {
+            ticket = context.Tickets.Include(x => x.Concert).ThenInclude(x => x.Place).Where(x => x.Id == intCode).Single();
+        }
+        catch
+        {
+            snack.Add(@<div><h1>QR Code non valide</h1></div>, Severity.Error);
+        }
+        if (ticket.Checked)
+        {
+            snack.Add
+        (
+    @<div>
+        <h1>Billet déja scanné</h1>
+    </div>
+    , Severity.Error);
+        }
+        else
+        {
+            ticket.Checked = true;
+            ticket.CheckedOn = DateTime.Now;
+            context.SaveChanges();
+            snack.Add(@<div>
+                <h1>Billet valide pour @ticket.FirstName @ticket.LastName</h1>
+                <h2>@ticket.Concert.Name</h2>
+                <h2>@ticket.Concert.Place.Name</h2>
+                </div>
+    , Severity.Success);
+        }
+    }
+
+
+    public async ValueTask DisposeAsync(){
+        if (_qrCodeScannerJsInterop != null)
+        {
+            await _qrCodeScannerJsInterop.StopRecording();
+            await _qrCodeScannerJsInterop.DisposeAsync();
+        }
+    }
+}

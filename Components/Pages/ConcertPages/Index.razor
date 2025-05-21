@@ -1,0 +1,44 @@
+﻿@page "/concerts"
+@using Microsoft.EntityFrameworkCore
+@using Concert400.Data
+@using MudBlazor
+@implements IAsyncDisposable
+@inject IDbContextFactory<Concert400.Data.ApplicationDbContext> DbFactory
+
+<PageTitle>Index</PageTitle>
+
+<h1 class="title">Admin Concert</h1>
+<MudContainer MaxWidth="MaxWidth.Medium">
+    <MudTable Items="context.Concerts">
+        <ToolBarContent>
+            <MudButton Color="Color.Dark" StartIcon="@Icons.Material.Filled.Add" Href="concerts/create">Nouveau Concert</MudButton>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Nom</MudTh>
+            <MudTh>Description</MudTh>
+            <MudTh>Date</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd><b>@context.Name</b></MudTd>
+            <MudTd>@context.Description</MudTd>
+            <MudTd>@context.Date</MudTd>
+            <MudTd>
+                <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.Info" Color="Color.Dark" Href="@($"details?id={context.Id}")" />
+                <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.Edit" Color="Color.Dark" Href="@($"concerts/edit?id={context.Id}")" />
+                <MudIconButton Size="Size.Small" Icon="@Icons.Material.Filled.DeleteForever" Color="Color.Error" Href="@($"concerts/delete?id={context.Id}")" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudContainer>
+
+@code {
+    private ApplicationDbContext context = default!;
+
+    protected override void OnInitialized()
+    {
+        context = DbFactory.CreateDbContext();
+    }
+
+    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+}

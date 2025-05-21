@@ -1,0 +1,31 @@
+﻿@page "/concerts/delete"
+@using Microsoft.EntityFrameworkCore
+@using Concert400.Data
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "manager")]
+@inject IDbContextFactory<Concert400.Data.ApplicationDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Delete</PageTitle>
+
+
+@code {
+    private Concert? concert;
+
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        concert = await context.Concerts.FirstOrDefaultAsync(m => m.Id == Id);
+
+        if (concert is null)
+        {
+            NavigationManager.NavigateTo("/concerts");
+        }
+        context.Concerts.Remove(concert!);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/concerts");
+    }
+}

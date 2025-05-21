@@ -1,0 +1,101 @@
+﻿@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Authorization
+@using MudBlazor
+@inject NavigationManager nav
+@inject UserManager<ApplicationUser> userManager
+@inject AuthenticationStateProvider auth
+@inject SignInManager<ApplicationUser> SignInManager
+
+<MudThemeProvider />
+<MudSnackbarProvider />
+<MudDialogProvider />
+
+<style>
+    .logo {
+    font-size: 2em;
+    font-weight: 800;
+    background-color: black;
+    color: white;
+    padding: 5px 15px;
+    }
+</style>
+
+
+<MudLayout>
+    <MudAppBar Color="Color.Transparent" Elevation="0">
+        <MudBreakpointProvider>
+            <MudHidden Breakpoint="Breakpoint.MdAndUp">
+                <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="DrawerToggle" />
+            </MudHidden>
+        </MudBreakpointProvider>
+        <div class="logo">Concert <span style="color:lawngreen">400</span></div>
+        <MudSpacer />
+        <AuthorizeView>
+            <Authorized>
+                <MudBreakpointProvider>
+                    <MudHidden Breakpoint="Breakpoint.SmAndUp" Invert>
+                        <MudLink Color="Color.Dark" Href="/Settings">@user?.GetUserName()</MudLink>
+                    </MudHidden>
+                </MudBreakpointProvider>
+                <a href="/Settings">
+                    <MudAvatar Class="mx-2" Color="Color.Info">
+                        @if (user?.Picture != null)
+                        {
+                            <MudImage Src="@($"data:image;base64,{System.Convert.ToBase64String(user.Picture ?? new byte[0])}")" />
+                        }
+                        else
+                        {
+                            @user?.GetAvatarName()
+                        }
+                    </MudAvatar>
+                </a>
+            </Authorized>
+            <NotAuthorized>
+                <MudLink Color="Color.Dark" Href="@($"/Account/Login?ReturnUrl={nav.Uri.Substring(nav.BaseUri.Length - 1)}")">Connexion</MudLink>
+            </NotAuthorized>
+        </AuthorizeView>
+    </MudAppBar>
+    <MudDrawer @bind-Open="@_drawerOpen" ClipMode="DrawerClipMode.Docked" Color="Color.Transparent" Style="background-color:#f6f8fc !important" Elevation=0>
+        <NavMenu />
+    </MudDrawer>
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge">
+            @Body
+        </MudContainer>
+
+        <div id="blazor-error-ui">
+            An unhandled error has occurred.
+            <a href="" class="reload">Reload</a>
+            <a class="dismiss">🗙</a>
+        </div>
+    </MudMainContent>
+</MudLayout>
+@code {
+    bool _drawerOpen = true;
+
+    private ApplicationUser? user = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState = await auth.GetAuthenticationStateAsync();
+            if (authState.User != null && authState.User.Identity!.IsAuthenticated)
+            {
+                user = await userManager.Users.FirstAsync(x => x.Id == userManager.GetUserId(authState.User));
+            }
+            StateHasChanged();
+        }
+        catch
+        {
+            
+        }
+    }
+
+    void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+}
+

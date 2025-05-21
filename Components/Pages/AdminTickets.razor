@@ -1,0 +1,79 @@
+﻿@page "/admintickets"
+@attribute [Authorize(Roles = "admin")]
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Authorization
+@using MudBlazor
+@inject IDbContextFactory<Concert400.Data.ApplicationDbContext> DbFactory
+@inject UserManager<ApplicationUser> userManager
+@inject RoleManager<IdentityRole> roleManager
+
+
+<MudTable Items="tickets">
+    <ToolBarContent>
+        <h3>Administration des tickets</h3>
+        <MudSpacer></MudSpacer>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ResetTickets">Réinitialiser tous les tickets</MudButton>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Utilisateur</MudTh>
+        <MudTh>Concert</MudTh>
+        <MudTh>Nom</MudTh>
+        <MudTh>Statut</MudTh>
+        <MudTh></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.User.GetUserName()</MudTd>
+        <MudTd>@context.Concert.Name</MudTd>
+        <MudTd>@context.FirstName @context.LastName</MudTd>
+        <MudTd>
+
+            @if (context.Checked)
+            {
+                <MudChip T="string" Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Secondary">@($"Scanné le {context.CheckedOn}")</MudChip>
+            }
+            else
+            {
+                <MudChip T="string" Icon="@Icons.Material.Filled.FiberNew" Color="Color.Info">Non scanné</MudChip>
+            }
+        </MudTd>
+        <MudTd>
+            @if (context.Checked)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(async () => await ResetTicket(context))">Réinitialiser</MudButton>
+            }
+        </MudTd>
+
+    </RowTemplate>
+</MudTable>
+
+@code {
+    List<Ticket> tickets = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        using (var ct = await DbFactory.CreateDbContextAsync())
+        {
+            tickets = await ct.Tickets.Include(t => t.User).Include(t => t.Concert).ToListAsync();
+        }
+    }
+
+    async Task ResetTickets()
+    {
+        using (var ct = await DbFactory.CreateDbContextAsync())
+        {
+            await ct.Database.ExecuteSqlRawAsync("UPDATE TICKETS SET CHECKED = 0, CHECKEDON = NULL");
+            tickets = await ct.Tickets.Include(t => t.User).Include(t => t.Concert).ToListAsync();
+        }
+    }
+
+    async Task ResetTicket(Ticket t)
+    {
+        using (var ct = await DbFactory.CreateDbContextAsync())
+        {
+            ct.Tickets.Attach(t);
+            t.Checked = false;
+            t.CheckedOn = null;
+            await ct.SaveChangesAsync();
+        }
+    }
+}

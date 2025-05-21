@@ -1,0 +1,96 @@
+﻿@page "/adminuser"
+@attribute [Authorize(Roles = "admin")]
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Authorization
+@using MudBlazor
+@inject IDbContextFactory<Concert400.Data.ApplicationDbContext> DbFactory
+@inject UserManager<ApplicationUser> userManager
+@inject RoleManager<IdentityRole> roleManager
+
+<h3>Administration des utilisateurs</h3>
+
+<MudTable Items="users">
+    <HeaderContent>
+        <MudTh>Utilisateur</MudTh>
+        <MudTh>Email</MudTh>
+        <MudTh>Scanneur</MudTh>
+        <MudTh>Organisateur</MudTh>
+        <MudTh>Administrateur</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd><MudAvatar Size="Size.Small" Color="Color.Primary" Class="me-2">@context.AvatarText</MudAvatar><b>@context.Name</b></MudTd>
+        <MudTd>@context.Email</MudTd>
+        <MudTd><MudCheckBox Value="context.IsScanner" ValueChanged="@(async (bool b) => await ToggleScanner(context, b))"></MudCheckBox></MudTd>
+        <MudTd><MudCheckBox Value="context.IsManager"  ValueChanged="@(async (bool b) => await ToggleManager(context, b))"></MudCheckBox></MudTd>
+        <MudTd><MudCheckBox Value="context.IsAdmin" ValueChanged="@(async (bool b) => await ToggleAdmin(context, b))"></MudCheckBox></MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    List<ApplicationUserViewmodel> users = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        users = await userManager.Users.Select(c => new ApplicationUserViewmodel()
+            {
+                Id = c.Id,
+                Email = c.Email,
+                Name = c.GetUserName(),
+                AvatarText = c.GetAvatarName(),
+                IsAdmin = userManager.GetRolesAsync(c).Result.Contains("admin"),
+                IsManager = userManager.GetRolesAsync(c).Result.Contains("manager"),
+                IsScanner = userManager.GetRolesAsync(c).Result.Contains("scanner")
+            }).ToListAsync();
+    }
+
+    async Task ToggleAdmin(ApplicationUserViewmodel vm, bool b)
+    {
+        var u = await userManager.FindByIdAsync(vm.Id);
+        if (b)
+        {
+            await userManager.AddToRoleAsync(u, "admin");
+        }
+        else
+        {
+            await userManager.RemoveFromRoleAsync(u, "admin");
+        }
+        vm.IsAdmin = b;
+    }
+    async Task ToggleScanner(ApplicationUserViewmodel vm, bool b)
+    {
+        var u = await userManager.FindByIdAsync(vm.Id);
+        if (b)
+        {
+            await userManager.AddToRoleAsync(u, "scanner");
+        }
+        else
+        {
+            await userManager.RemoveFromRoleAsync(u, "scanner");
+        }
+        vm.IsScanner = b;
+    }
+    async Task ToggleManager(ApplicationUserViewmodel vm, bool b)
+    {
+        var u = await userManager.FindByIdAsync(vm.Id);
+        if (b)
+        {
+            await userManager.AddToRoleAsync(u, "manager");
+        }
+        else
+        {
+            await userManager.RemoveFromRoleAsync(u, "manager");
+        }
+        vm.IsManager = b;
+    }
+
+    class ApplicationUserViewmodel
+    {
+        public string Id { get; set; } = string.Empty;
+        public string? AvatarText { get; set; }
+        public string? Name { get; set; }
+        public string? Email { get; set; }
+        public bool IsAdmin { get; set; }
+        public bool IsManager { get; set; }
+        public bool IsScanner { get; set; }
+    }
+}

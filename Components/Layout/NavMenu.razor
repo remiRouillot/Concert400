@@ -1,0 +1,63 @@
+﻿@implements IDisposable
+@inject IHttpContextAccessor acc
+@inject NavigationManager nav
+@using MudBlazor
+@using Microsoft.AspNetCore.Identity
+
+<MudNavMenu Color="Color.Dark" Rounded>
+    <MudNavLink Href="/" Match="NavLinkMatch.All">Concerts</MudNavLink>
+    <AuthorizeView>
+        <MudNavLink Href="/tickets" Match="NavLinkMatch.Prefix">Mes billets</MudNavLink>
+        <MudNavLink Href="/settings" Match="NavLinkMatch.Prefix">Mon Compte</MudNavLink>
+    </AuthorizeView>
+    <AuthorizeView Roles="manager">
+        <MudNavGroup Title="Organisation" Expanded="true">
+            <MudNavLink Href="/concerts" Match="NavLinkMatch.Prefix">Concerts</MudNavLink>
+            <MudNavLink Href="/places" Match="NavLinkMatch.Prefix">Lieux</MudNavLink>
+            <MudNavLink Href="/artists" Match="NavLinkMatch.Prefix">Artistes</MudNavLink>
+        </MudNavGroup>
+    </AuthorizeView>
+    <AuthorizeView Roles="scanner">
+        <MudNavLink Href="/scan" Match="NavLinkMatch.Prefix">Scan des tickets</MudNavLink>
+    </AuthorizeView>
+    <AuthorizeView Roles="admin">
+        <MudNavGroup Title="Administration" Expanded="true">
+            <MudNavLink Href="/adminuser" Match="NavLinkMatch.Prefix">Gestion des utilisateurs</MudNavLink>
+            <MudNavLink Href="/admintickets" Match="NavLinkMatch.Prefix">Gestion des tickets</MudNavLink>
+        </MudNavGroup>
+    </AuthorizeView>
+    <MudDivider Class="my-2" />
+    <AuthorizeView>
+        <Authorized>
+            <MudNavLink style="color:red;" Href="@($"/Account/Logout?ReturnUrl={nav.Uri.Substring(nav.BaseUri.Length - 1)}")">Déconnexion</MudNavLink>
+        </Authorized>
+        <NotAuthorized>
+            <MudNavLink Href="@($"/Account/Login?ReturnUrl={nav.Uri.Substring(nav.BaseUri.Length - 1)}")" Match="NavLinkMatch.Prefix">Se connecter</MudNavLink>
+        </NotAuthorized>
+    </AuthorizeView>
+    <MudNavLink Href="/manage" Match="NavLinkMatch.All">Gestion DB2</MudNavLink>
+    <MudNavLink Href="/benchmark" Match="NavLinkMatch.All">Becnhmark</MudNavLink>
+</MudNavMenu>
+
+@code {
+
+    private string? currentUrl;
+
+    protected override void OnInitialized()
+    {
+        currentUrl = nav.ToBaseRelativePath(nav.Uri);
+        nav.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        currentUrl = nav.ToBaseRelativePath(e.Location);
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        nav.LocationChanged -= OnLocationChanged;
+    }
+}
+

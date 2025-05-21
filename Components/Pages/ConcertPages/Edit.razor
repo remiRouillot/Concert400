@@ -1,0 +1,113 @@
+﻿@page "/concerts/edit"
+@using Microsoft.EntityFrameworkCore
+@using Concert400.Data
+@using MudBlazor
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "manager")]
+@inject IDbContextFactory<Concert400.Data.ApplicationDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create</PageTitle>
+
+
+<div>
+    <a href="/concerts">Back to List</a>
+</div>
+@if (Concert != null)
+{
+        <h1 class="title">Modifier Concert</h1>
+    <MudContainer MaxWidth="MaxWidth.Medium">
+        <MudButton Color="Color.Dark" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ChevronLeft" Href="concerts">Retour</MudButton>
+        <MudPaper Class="px-2 py-5">
+            <ImageUpload @bind-Data="Concert.Picture"></ImageUpload>
+            <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" Label="Titre" @bind-Value="Concert.Name"></MudTextField>
+            <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" Label="Description" @bind-Value="Concert.Description" Lines="4"></MudTextField>
+            <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" Label="Prix" @bind-Value="Concert.Price" InputType="InputType.Number"></MudTextField>
+            <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" Label="Prix" @bind-Value="Concert.Price" InputType="InputType.Number"></MudTextField>
+            <MudDatePicker Variant="Variant.Outlined" PickerVariant="PickerVariant.Static" Orientation="Orientation.Landscape" Margin="Margin.Dense" Label="Date" @bind-Date="Concert.Date"></MudDatePicker>
+            <MudTimePicker Variant="Variant.Outlined" Margin="Margin.Dense" Label="Heure" @bind-Time="ts"></MudTimePicker>
+            <MudSelect Variant="Variant.Outlined" Margin="Margin.Dense" Label="Lieu" T="Place" @bind-Value="Concert.Place">
+                @foreach (var place in Places)
+                {
+                    <MudSelectItem Value="place">@place.Name</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSelect Variant="Variant.Outlined" Margin="Margin.Dense" Label="Artistes" T="Artist" MultiSelection @bind-SelectedValues="Concert.Artists" ToStringFunc="x => x.Name">
+                @foreach (var artist in Artists)
+                {
+                    <MudSelectItem Value="artist">@artist.Name</MudSelectItem>
+                }
+            </MudSelect>
+            <MudButton OnClick="UpdateConcert" Color="Color.Dark">Enregistrer</MudButton>
+        </MudPaper>
+    </MudContainer>
+}
+
+@code {
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private Concert? Concert { get; set; }
+
+    private List<Place> Places = new();
+    private List<Artist> Artists = new();
+    private TimeSpan? ts
+    {
+        get
+        {
+            return Concert.Date != null ? Concert.Date.Value.TimeOfDay : null;
+        }
+        set
+        {
+            if (Concert.Date != null && value != null)
+            {
+                Concert.Date = new DateTime(DateOnly.FromDateTime(Concert.Date.Value), TimeOnly.FromTimeSpan(value.Value));
+            }
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        Concert ??= await context.Concerts.FirstOrDefaultAsync(m => m.Id == Id);
+        Places = context.Places.ToList();
+        Artists = context.Artists.ToList();
+        if (Concert is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task UpdateConcert()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Concert!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!ConcertExists(Concert!.Id))
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/concerts");
+    }
+
+    private bool ConcertExists(int id)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.Concerts.Any(e => e.Id == id);
+    }
+}

@@ -1,0 +1,88 @@
+﻿@page "/places/edit"
+@using Microsoft.EntityFrameworkCore
+@using Concert400.Data
+@using MudBlazor
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "manager")]
+@inject IDbContextFactory<Concert400.Data.ApplicationDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Lieux</PageTitle>
+
+
+@if (Place != null)
+{
+        <h1 class="title">Modifier Lieu</h1>
+    <MudContainer MaxWidth="MaxWidth.Medium">
+        <MudButton Color="Color.Dark" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ChevronLeft" Href="places">Retour</MudButton>
+        <MudPaper Class="px-2 py-5">
+            <ImageUpload @bind-Data="Place.Picture"></ImageUpload>
+            <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" Label="Titre" @bind-Value="@Place.Name"></MudTextField>
+            <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" Label="Description" @bind-Value="@Place.Description" Lines="4"></MudTextField>
+            <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" Label="Téléphone" @bind-Value="@Place.PhoneNumber"></MudTextField>
+            <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" Label="Adresse 1" @bind-Value="@Place.Address1"></MudTextField>
+            <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" Label="Adresse 2" @bind-Value="@Place.Address2"></MudTextField>
+            <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" Label="Code Postal" @bind-Value="@Place.Zip"></MudTextField>
+            <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" Label="Ville" @bind-Value="@Place.City"></MudTextField>
+            <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" Label="Pays" @bind-Value="@Place.Country"></MudTextField>
+            <MudButton OnClick="UpdatePlace" Color="Color.Dark">Enregistrer</MudButton>
+        </MudPaper>
+    </MudContainer>
+}
+
+
+
+<div>
+    <a href="/places">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private Place? Place { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        Place ??= await context.Places.FirstOrDefaultAsync(m => m.Id == Id);
+
+        if (Place is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task UpdatePlace()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Place!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!PlaceExists(Place!.Id))
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/places");
+    }
+
+    private bool PlaceExists(int id)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.Places.Any(e => e.Id == id);
+    }
+}

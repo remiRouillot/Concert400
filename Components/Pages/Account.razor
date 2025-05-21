@@ -1,0 +1,80 @@
+﻿@page "/Settings"
+@using Microsoft.EntityFrameworkCore
+@using Concert400.Data
+@using MudBlazor
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Authorization
+@inject UserManager<ApplicationUser> userManager
+@inject AuthenticationStateProvider auth
+@attribute [Authorize]
+
+<PageTitle>Index</PageTitle>
+
+<h1 class="title">Mon compte</h1>
+<MudContainer MaxWidth="MaxWidth.Small">
+    <MudPaper Class="px-2 py-5">
+@*         @if (user.Picture != null)
+        {
+            <MudButton Class="my-1" Variant="Variant.Filled" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete" Size="Size.Small" OnClick="() => user.Picture = null">
+                Supprimer l'image
+            </MudButton>
+            <div class="d-flex justify-center">
+                <MudAvatar Style="height:150px; width:150px; font-size:2rem;" Color="Color.Primary" Variant="Variant.Filled">
+                    <MudImage Src="@($"data:image;base64,{System.Convert.ToBase64String(user.Picture ?? new byte[0])}")" />
+                </MudAvatar>
+            </div>
+        }
+        else
+        { *@
+            <div class="d-flex justify-center">
+                <MudAvatar Style="height:150px; width:150px; font-size:2rem;" Color="Color.Primary" Variant="Variant.Filled">
+                    @user.GetAvatarName()
+                </MudAvatar>
+            </div>
+@*             <MudFileUpload T="IBrowserFile" FilesChanged="@(x => UploadFiles(x))">
+                <ButtonTemplate>
+                    <MudButton Class="my-1" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload" Size="Size.Small">
+                        Télécharger une image
+                    </MudButton>
+                </ButtonTemplate>
+            </MudFileUpload>
+        } *@
+        <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" Label="Prénom" @bind-Value="user.FirstName"></MudTextField>
+        <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" Label="Nom" @bind-Value="user.LastName"></MudTextField>
+        <MudButton OnClick="UpdateUser">Enregistrer</MudButton>
+    </MudPaper>
+</MudContainer>
+
+
+@code {
+    ApplicationUser user = default!;
+    AuthenticationState authState = default!;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await auth.GetAuthenticationStateAsync();
+        if (authState.User != null && authState.User.Identity!.IsAuthenticated)
+        {
+            user = await userManager.Users.FirstAsync(x => x.Id == userManager.GetUserId(authState.User));
+        }
+    }
+
+
+
+    // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task UpdateUser()
+    {
+        await userManager.UpdateAsync(user);
+    }
+
+
+    private async Task UploadFiles(IBrowserFile file)
+    {
+        using (var ms = new MemoryStream())
+        {
+            await file.OpenReadStream().CopyToAsync(ms);
+            user.Picture = ms.ToArray();
+        }
+    }
+}

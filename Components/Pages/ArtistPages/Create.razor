@@ -1,0 +1,38 @@
+﻿@page "/artists/create"
+@using Microsoft.EntityFrameworkCore
+@using Concert400.Data
+@using MudBlazor
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "manager")]
+@inject IDbContextFactory<Concert400.Data.ApplicationDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Artistes</PageTitle>
+
+@if (Artist != null)
+{
+    <h1 class="title">Nouvel Artiste</h1>
+    <MudContainer MaxWidth="MaxWidth.Medium">
+        <MudButton Color="Color.Dark" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ChevronLeft" Href="artists">Retour</MudButton>
+        <MudPaper Class="px-2 py-5">
+            <ImageUpload @bind-Data="Artist.Picture"></ImageUpload>
+            <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" Label="Titre" @bind-Value="@Artist.Name"></MudTextField>
+            <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" Label="Description" @bind-Value="@Artist.Description" Lines="4"></MudTextField>
+            <MudButton OnClick="AddArtist">Enregistrer</MudButton>
+        </MudPaper>
+    </MudContainer>
+}
+
+@code {
+    [SupplyParameterFromForm]
+    private Artist Artist { get; set; } = new();
+
+    // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task AddArtist()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Artists.Add(Artist);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/artists");
+    }
+}

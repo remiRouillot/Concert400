@@ -1,0 +1,77 @@
+﻿@page "/artists/edit"
+@using Microsoft.EntityFrameworkCore
+@using MudBlazor
+@using Concert400.Data
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "manager")]
+@inject IDbContextFactory<Concert400.Data.ApplicationDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Artistes</PageTitle>
+
+@if (Artist != null)
+{
+        <h1 class="title">Modifier Artiste</h1>
+    <MudContainer MaxWidth="MaxWidth.Medium">
+        <MudButton Color="Color.Dark" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ChevronLeft" Href="artists">Retour</MudButton>
+        <MudPaper Class="px-2 py-5">
+            <ImageUpload @bind-Data="Artist.Picture"></ImageUpload>
+            <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" Label="Titre" @bind-Value="@Artist.Name"></MudTextField>
+            <MudTextField Variant="Variant.Outlined" Margin="Margin.Dense" Label="Description" @bind-Value="@Artist.Description" Lines="4"></MudTextField>
+            <MudButton OnClick="UpdateArtist" Color="Color.Dark">Enregistrer</MudButton>
+        </MudPaper>
+    </MudContainer>
+}
+
+
+
+@code {
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private Artist? Artist { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        Artist ??= await context.Artists.FirstOrDefaultAsync(m => m.Id == Id);
+
+        if (Artist is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task UpdateArtist()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Artist!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!ArtistExists(Artist!.Id))
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/artists");
+    }
+
+    private bool ArtistExists(int id)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.Artists.Any(e => e.Id == id);
+    }
+}
